@@ -3,14 +3,13 @@ package main
 import (
 	"fmt"
 	"time"
-
 	"github.com/shirou/gopsutil/cpu"
 )
 
 func main() {
 
 	//Percent calculates the percentage of cpu used either per CPU or combined.
-	percent, _ := cpu_windows.Percent(time.Second, true)
+	percent, _ := cpu.Percent(time.Second, true)
 	fmt.Println("  User: %.2f\n", percent[cpu.CPUser])
 	fmt.Println("  Nice: %.2f\n", percent[cpu.CPNice])
 	fmt.Println("   Sys: %.2f\n", percent[cpu.CPSys])
