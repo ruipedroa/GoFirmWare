@@ -10,6 +10,7 @@ import (
     "strconv"
     "strings"
 	"time"
+     "log"
 	"github.com/shirou/gopsutil/mem"    
     "database/sql"
 _ "github.com/mattn/go-sqlite3"
@@ -78,25 +79,96 @@ func StoreValues(db *sql.DB, ival[4] int, fval[2] float64) () {
     return
 }
 
-//Retrieves Values from the Database
+//Retrieves Average vaue from each column in the Database
 
-func getValues(db *sql.DB, ival[4] int, fval[2] float64) () {
+func getValues(db *sql.DB, variable string, NRows string, table int) () {
+        
+        var FloatValue float64
+        var IntValue int
+        text := " " 
+        if table == 0 {
+            if variable == "1" { text = "CPU"
+            }else if variable == "2" {  text = "RAM"
+            }else{
+                    fmt.Println("Variable doesn't exist.")                
+                    return}
+            rows, err :=db.Query("SELECT " + text +" FROM SystemData WHERE id > (SELECT MAX(id)  - " + NRows + "FROM SystemData)")
+            if err != nil {
+                    log.Fatalf("Error : %v", err)
+                    return
+                   }
+            fmt.Println(text + " : ")            
+            for rows.Next(){
+                rows.Scan(&FloatValue)
+                fmt.Println(strconv.FormatFloat(FloatValue, 'f', -1, 64))
+                }
+            rows.Close() 
+            }
+        if table == 1 {
+            if variable == "3" { text = "temp" 
+            }else if variable == "4" { text = "humidity"
+            }else if variable == "5" { text = "voltage" 
+            }else if variable == "6" { text = "current"
+            }else{
+                    fmt.Println("Variable doesn't exist.")                
+                    return}            
+            rows, err :=db.Query("SELECT " + text +" FROM DeviceData WHERE id > (SELECT MAX(id)  - " + NRows + "FROM DeviceData)")
+            if err != nil {
+                    log.Fatalf("Error : %v", err)
+                    return
+                   }
+            fmt.Println(text + " : ")            
+            for rows.Next()  {
+                rows.Scan(&IntValue)
+                fmt.Println(strconv.Itoa(IntValue))
+                } 
+            rows.Close()            
+            }        
+        return        
+}
+
+func averageValue (db *sql.DB, variable string, table int) () {
+        var average float64
+        text := " " 
+        if table == 0 {
+            if variable == "1" { text = "CPU"
+            }else if variable == "2" {  text = "RAM"
+            }else{
+                    fmt.Println("Variable doesn't exist.")                
+                    return}
+            rows, err :=db.Query("SELECT AVG(" + text + " ) FROM SystemData")
+            if err != nil {
+                    log.Fatalf("Error : %v", err)
+                    return
+                   }
+            fmt.Println(text + " average : ")
+            rows.Next()            
+            rows.Scan(&average)
+            fmt.Println(strconv.FormatFloat(average, 'f', -1, 64))
+            rows.Close()    
+            }
+
+        if table == 1 {
+            if variable == "3" { text = "temp" 
+            }else if variable == "4" { text = "humidity"
+            }else if variable == "5" { text = "voltage" 
+            }else if variable == "6" { text = "current"
+            }else{
+                    fmt.Println("Variable doesn't exist.")                
+                    return}            
+            rows, err :=db.Query("SELECT AVG( " + text + " ) FROM DeviceData")
+            if err != nil {
+                    log.Fatalf("Error : %v", err)
+                    return
+                   }
+            fmt.Println(text + " average : ")
+            rows.Next()            
+            rows.Scan(&average)
+            fmt.Println(strconv.FormatFloat(average, 'f', -1, 64))
+            rows.Close()                 
+            }        
+        return
     
-        statement, err := db.Prepare("INSERT INTO SystemData (CPU, RAM) VALUES (?, ?)")
-        if err != nil {
-            fmt.Println("Error:" , err)
-            return           
-            }
-        statement.Exec(fval[0], fval[1])
-        
-        statement, err = db.Prepare("INSERT INTO DeviceData (temp , humidity, voltage, current) VALUES (?, ?, ?, ?)")
-         if err != nil {
-            fmt.Println("Error:" , err)
-            return           
-            }
-        statement.Exec(ival[0], ival[1], ival[2], ival[3])
-        
-    return
 }
 
 func main() {
@@ -108,6 +180,7 @@ func main() {
     fmt.Println("1. Get last n metrics for all variables;")
     fmt.Println("2. Get last n metrics for one or more variables;")
     fmt.Println("3. Get average value of one or more variables.")
+    fmt.Println("4. Close application.")
     fmt.Println("Press 0 to see this menu again.")
     fmt.Printf("-> ")
     
@@ -166,44 +239,42 @@ func main() {
                       rowsSystem.Scan(&CPU, &RAM)
                       fmt.Println(strconv.FormatFloat(CPU, 'f', -1, 64) +"          "+ strconv.FormatFloat(RAM, 'f', -1, 64))
                   }
+                  
                   rowsDevice, _ :=database.Query("SELECT temp, humidity, voltage, current FROM DeviceData WHERE id > (SELECT MAX(id)  - " + NRows + "FROM DeviceData)")
                   fmt.Println("Temperature(ºC) | Humidity(%) | Voltage(V) | Current(mA)")
                   for rowsDevice.Next()  {
                      rowsDevice.Scan(&temp, &humidity, &voltage, &current)
                      fmt.Println(strconv.Itoa(temp)  +"                 "+ strconv.Itoa(humidity) + "             " + strconv.Itoa(voltage) + "            " + strconv.Itoa(current))
                      }
+                  rowsSystem.Close()
+                  rowsDevice.Close()
                   fmt.Printf("-> ")
              }     
          if text == "2"{ 
                      fmt.Printf("Number of metrics to retrieve: ")
-                     //NRows, _ := reader.ReadString('\n')
+                     NRows, _ := reader.ReadString('\n')
                      
                      fmt.Printf("Variables to display (Separate by commas): \n")
-                     fmt.Println("1-CPU")
-                     fmt.Println("2-RAM")
-                     fmt.Println("3-Temperature")
-                     fmt.Println("4-Humidity")
-                     fmt.Println("5-Voltage")
-                     fmt.Println("6-Current")
-                    /* Variables, _ := reader.ReadString('\n')
-                     Variables := strings.Split(SystemVariables, ",")
+                     fmt.Println("1.CPU")
+                     fmt.Println("2.RAM")
+                     fmt.Println("3.Temperature")
+                     fmt.Println("4.Humidity")
+                     fmt.Println("5.Voltage")
+                     fmt.Println("6.Current")
+                     Variables, _ := reader.ReadString('\n')
+                     Variables = strings.Replace(Variables, "\n", "", -1)
+                     VarByte := strings.Split(Variables, ",")       
                      
-                     rowsSystem, _ :=database.Query("SELECT"+ SystemVariables +" FROM SystemData WHERE id > (SELECT MAX(id)  - " + NRows + "FROM SystemData)")
-                     fmt.Printf("Variables to display (use comma to separate) from System (temp, humidity, voltage, current): ")
-                     DeviceVariables, _ := reader.ReadString('\n')
-                     rowsDevice, _ :=database.Query("SELECT" + DeviceVariables +" FROM DeviceData WHERE id > (SELECT MAX(id)  - " + text + "FROM DeviceData)")
-                     fmt.Println(SystemVariables + " : ")        
-                     for rowsSystem.Next()  {
-                         
-                         rowsSystem.Scan(&CPU, &RAM)
-                         fmt.Println(strconv.FormatFloat(CPU, 'f', -1, 64) +"          "+ strconv.FormatFloat(RAM, 'f', -1, 64))
-                     }
-                     fmt.Println(DeviceVariables + " : ") 
-                     for rowsDevice.Next()  {
-                        rowsDevice.Scan(&temp, &humidity, &voltage, &current)
-                        fmt.Println(strconv.Itoa(temp)  +"                 "+ strconv.Itoa(humidity) + "             " + strconv.Itoa(voltage) + "            " + strconv.Itoa(current))
-                     }  */
-                    fmt.Printf("-> ")                   
+                     for  index := 0; index< len(VarByte); index ++{
+                         if VarByte[index] == "1" || VarByte[index] == "2" {
+                            getValues(database, VarByte[index],NRows,0)
+                            }
+                         if VarByte[index] == "3" || VarByte[index] == "4" || VarByte[index] =="5" || VarByte[index] =="6" {
+                            getValues(database, VarByte[index],NRows, 1)
+                            }
+                         }
+
+                     fmt.Printf("-> ")                   
                     }  
           if text == "3" {
                      fmt.Printf("Variables to display (Separate by commas): \n")
@@ -213,7 +284,21 @@ func main() {
                      fmt.Println("4-Humidity")
                      fmt.Println("5-Voltage")
                      fmt.Println("6-Current")
+                     Variables, _ := reader.ReadString('\n')
+                     Variables = strings.Replace(Variables, "\n", "", -1)
+                     VarByte := strings.Split(Variables, ",")       
+                     
+                     for  index := 0; index< len(VarByte); index ++{
+                         if VarByte[index] == "1" || VarByte[index] == "2" {
+                            averageValue(database, VarByte[index], 0)
+                            }
+                         if VarByte[index] == "3" || VarByte[index] == "4" || VarByte[index] =="5" || VarByte[index] =="6" {
+                            averageValue(database, VarByte[index], 1)
+                            }
+                         }
+
                      fmt.Printf("-> ")
+                     
                 }
           if text == "0" {
                      fmt.Println("Simple Shell")
@@ -222,11 +307,19 @@ func main() {
                      fmt.Println("1. Get last n metrics for all variables;")
                      fmt.Println("2. Get last n metrics for one or more variables;")
                      fmt.Println("3. Get average value of one or more variables.")
+                     fmt.Println("4. Close application.")
                      fmt.Println("Press 0 to see this menu again.")
                      fmt.Printf("-> ")
                      }
+         if text == "4" {
+                break            
+                }
         idle0 = idle1
         total0 = total1
-
    }
+   err = database.Close()
+   if err != nil {
+        fmt.Println("Error:" , err)
+        return
+    } 
 }
