@@ -10,7 +10,7 @@ import (
     "strconv"
     "strings"
 	"time"
-     "log"
+    "log"
 	"github.com/shirou/gopsutil/mem"    
     "database/sql"
 _ "github.com/mattn/go-sqlite3"
@@ -86,6 +86,7 @@ func getValues(db *sql.DB, variable string, NRows string, table int) () {
         var FloatValue float64
         var IntValue int
         text := " " 
+        //Separate code by the different tables . 0= SystemData , 1=DeviceData
         if table == 0 {
             if variable == "1" { text = "CPU"
             }else if variable == "2" {  text = "RAM"
@@ -104,6 +105,7 @@ func getValues(db *sql.DB, variable string, NRows string, table int) () {
                 }
             rows.Close() 
             }
+        
         if table == 1 {
             if variable == "3" { text = "temp" 
             }else if variable == "4" { text = "humidity"
@@ -130,6 +132,7 @@ func getValues(db *sql.DB, variable string, NRows string, table int) () {
 func averageValue (db *sql.DB, variable string, table int) () {
         var average float64
         text := " " 
+        //Separate code by the different tables . 0= SystemData , 1=DeviceData
         if table == 0 {
             if variable == "1" { text = "CPU"
             }else if variable == "2" {  text = "RAM"
@@ -208,8 +211,9 @@ func main() {
     var CPU float64
     var RAM float64
     
-    idle0,total0 :=getCPUSample()
     // Cycle to get reads every second
+    idle0,total0 :=getCPUSample()
+    
     for {
         text, _ := reader.ReadString('\n')
         text = strings.Replace(text, "\n", "", -1)
@@ -228,7 +232,7 @@ func main() {
         temp, humidity, voltage, current := GenerateVars()
       
         StoreValues(database, [4]int{temp,humidity,voltage,current}, [2]float64{math.Round(cpuUsage*100)/100, math.Round(v.UsedPercent*100)/100})
-         
+        //Enter user interface state machine 
         if text=="1" {
                   fmt.Printf("Number of metrics to retrieve: ")
                   NRows, _ := reader.ReadString('\n')
@@ -317,6 +321,7 @@ func main() {
         idle0 = idle1
         total0 = total1
    }
+    //Close database
    err = database.Close()
    if err != nil {
         fmt.Println("Error:" , err)
